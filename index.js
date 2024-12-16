@@ -102,6 +102,40 @@ async function run() {
         })
 
 
+        app.get('/user/products', verifyJWT, async (req, res) => {
+            const email = req.decoded.email;
+            try {
+                const products = await productCollection.find({ email }).toArray();
+                res.send(products);
+            } catch (error) {
+                res.status(500).send({ success: false, message: 'Failed to get products', error: error.message });
+            }
+        });
+
+        //all products
+        app.get('/all-products', async (req, res) => {
+            const { title, sort, category, brand } = req.query
+            const query = {}
+            if (title) {
+                query.title = { $regex: title, $options: 'i' }
+            }
+            if (category) {
+                query.category = { $regex: category, $options: 'i' }
+            }
+            if (brand) {
+                query.brand = brand
+            }
+            const sortOptions = sort === 'asc' ? 1 : -1
+            const products = await productCollection.find(query).sort({ price: sortOptions }).toArray()
+
+            const productInfo = await productCollection.find({}, { projection: { category: 1, brand: 1 } }).toArray()
+            const totalProduct = await productCollection.countDocuments(query);
+            const brands = [...new Set(productInfo.map(product => product.brand))]
+            const categories = [...new Set(productInfo.map(product => product.category))]
+            res.send({ products, brands, categories, totalProduct })
+
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
