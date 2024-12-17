@@ -114,7 +114,7 @@ async function run() {
 
         //all products
         app.get('/all-products', async (req, res) => {
-            const { title, sort, category, brand } = req.query
+            const { title, sort, category, brand, page = 1, limit = 2 } = req.query
             const query = {}
             if (title) {
                 query.title = { $regex: title, $options: 'i' }
@@ -125,10 +125,19 @@ async function run() {
             if (brand) {
                 query.brand = brand
             }
+
+            const currentPage = parseInt(page) || 1;
+            const itemsPerPage = parseInt(limit) || 2;
+            const skip = (currentPage - 1) * itemsPerPage;
+
             const sortOptions = sort === 'asc' ? 1 : -1
-            const products = await productCollection.find(query).sort({ price: sortOptions }).toArray()
+            const products = await productCollection.find(query)
+                .skip(skip)
+                .limit(itemsPerPage)
+                .sort({ price: sortOptions }).toArray()
 
             const productInfo = await productCollection.find({}, { projection: { category: 1, brand: 1 } }).toArray()
+
             const totalProduct = await productCollection.countDocuments(query);
             const brands = [...new Set(productInfo.map(product => product.brand))]
             const categories = [...new Set(productInfo.map(product => product.category))]
